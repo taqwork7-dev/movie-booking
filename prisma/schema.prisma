@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Movie {
+  id          String     @id @default(cuid())
+  title       String
+  slug        String     @unique
+  description String
+  posterUrl   String
+  duration    Int
+  rating      Float?
+  releaseDate DateTime
+
+  genres      MovieGenre[]
+  showtimes   Showtime[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([releaseDate])
+}
+
+model Genre {
+  id     String      @id @default(cuid())
+  name   String      @unique
+
+  movies MovieGenre[]
+}
+
+model MovieGenre {
+  movieId String
+  genreId String
+
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  genre Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([movieId, genreId])
+  @@index([genreId])
+}
+
+model Cinema {
+  id        String   @id @default(cuid())
+  name      String
+  address   String
+
+  screens   Screen[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Screen {
+  id        String   @id @default(cuid())
+  name      String
+
+  cinemaId  String
+  cinema    Cinema @relation(fields: [cinemaId], references: [id], onDelete: Cascade)
+
+  seats     Seat[]
+  showtimes Showtime[]
+
+  @@unique([cinemaId, name])
+  @@index([cinemaId])
+}
+
+model Seat {
+  id       String @id @default(cuid())
+  row      String
+  number   Int
+
+  screenId String
+  screen   Screen @relation(fields: [screenId], references: [id], onDelete: Cascade)
+
+  bookingSeats BookingSeat[]
+
+  @@unique([screenId, row, number])
+  @@index([screenId])
+}
+
+model Showtime {
+  id String @id @default(cuid())
+  startTime DateTime
+  price Int
+
+  movieId String
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  screenId String
+  screen Screen @relation(fields: [screenId], references: [id], onDelete: Cascade)
+
+  bookings Booking[]
+  bookingSeats BookingSeat[]
+
+  @@index([movieId, startTime])
+  @@index([screenId, startTime])
+}
+
+model Booking {
+  id            String   @id @default(cuid())
+  customerName  String
+  customerEmail String
+  totalAmount   Int
+
+  showtimeId    String
+  showtime      Showtime @relation(fields: [showtimeId], references: [id])
+
+  seats         BookingSeat[]
+
+  createdAt     DateTime @default(now())
+
+  @@index([showtimeId])
+  @@index([customerEmail])
+}
+
+model BookingSeat {
+  id String @id @default(cuid())
+
+  bookingId String
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  showtimeId String
+  showtime Showtime @relation(fields: [showtimeId], references: [id], onDelete: Cascade)
+
+  seatId String
+  seat Seat @relation(fields: [seatId], references: [id])
+
+  @@unique([showtimeId, seatId])
+  @@index([bookingId])
+  @@index([seatId])
+}

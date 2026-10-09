@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Concurrency Protection
 
-## Getting Started
+Seat booking is protected at the database level to prevent the same seat from being booked multiple times for the same showtime.
 
-First, run the development server:
+The `BookingSeat` model uses a composite unique constraint:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```prisma
+@@unique([showtimeId, seatId])
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+This guarantees that the same seat can only be associated with one booking for a specific showtime.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The booking API also uses a database transaction when creating the booking and its selected seats.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+If multiple requests attempt to book the same seat concurrently:
 
-## Learn More
+```text
+20 concurrent requests
+        ↓
+1 request  →  201 Created
+19 requests →  409 Conflict
+```
 
-To learn more about Next.js, take a look at the following resources:
+The database constraint acts as the final protection against race conditions, while the API converts duplicate constraint violations into a `409 Conflict` response.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+This is intentionally implemented at the database layer rather than relying only on frontend seat availability checks.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Future Improvements
 
-## Deploy on Vercel
+Possible production-level improvements include:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+* Authentication and user accounts
+* Booking history
+* Payment integration
+* Email booking confirmation
+* Admin dashboard
+* Movie and showtime management
+* Redis-based caching
+* Automated tests
+* CI/CD pipeline
+* Better connection pool and database infrastructure configuration
